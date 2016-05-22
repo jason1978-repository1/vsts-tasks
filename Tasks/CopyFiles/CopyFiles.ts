@@ -1,11 +1,10 @@
-/// <reference path="../../definitions/node.d.ts"/>
-/// <reference path="../../definitions/Q.d.ts" />
 /// <reference path="../../definitions/vso-task-lib.d.ts" />
 
 import path = require('path');
 import fs = require('fs');
-import Q = require('q');
-var tl = require("vso-task-lib");
+import os = require('os');
+import tl = require('vso-task-lib/vsotask');
+import util= require('util');
 
 function getCommonLocalPath(files: string[]): string {
     if (!files || files.length === 0) {
@@ -79,9 +78,9 @@ function getFolderDepth(fullPath: string): number {
 }
 
 // contents is a multiline input containing glob patterns
-var contents: string[] = tl.getDelimitedInput('Contents', '\n');
-var sourceFolder: string = tl.getPathInput('SourceFolder');
-var targetFolder: string = tl.getPathInput('TargetFolder');
+var contents: string[] = tl.getDelimitedInput('Contents', '\n', true);
+var sourceFolder: string = tl.getPathInput('SourceFolder', true);
+var targetFolder: string = tl.getPathInput('TargetFolder', true);
 
 var cleanTargetFolderString: string = tl.getInput('CleanTargetFolder');
 var overWriteString: string = tl.getInput('OverWrite');
@@ -132,19 +131,31 @@ for (var i: number = 0; i < allPaths.length; i++) {
     }
 }
 
+// if we only have exclude filters, we need add a include all filter, so we can have something to exclude.
+if(includeContents.length == 0 && excludeContents.length > 0) {
+    includeContents.push('**');
+}
+
 if (includeContents && allFiles && includeContents.length > 0 && allFiles.length > 0) {
     tl.debug("allFiles contains " + allFiles.length + " files");
 
     // a map to eliminate duplicates
     var map = {};
     
+    // minimatch options
+    var matchOptions = { matchBase: true };
+    if(os.type().match(/^Win/))
+    {
+        matchOptions["nocase"] = true;
+    }
+        
     // apply include filter
     for (var i: number = 0; i < includeContents.length; i++) {
         var pattern = includeContents[i];
         tl.debug('Include matching ' + pattern);        
 
         // let minimatch do the actual filtering
-        var matches: string[] = tl.match(allFiles, pattern, { matchBase: true });
+        var matches: string[] = tl.match(allFiles, pattern, matchOptions);
             
         tl.debug('Include matched ' + matches.length + ' files');
         for (var j: number = 0; j < matches.length; j++) {
@@ -162,7 +173,7 @@ if (includeContents && allFiles && includeContents.length > 0 && allFiles.length
         tl.debug('Exclude matching ' + pattern);
 
         // let minimatch do the actual filtering
-        var matches: string[] = tl.match(files, pattern, { matchBase: true });
+        var matches: string[] = tl.match(files, pattern, matchOptions);
             
         tl.debug('Exclude matched ' + matches.length + ' files');
         files = [];
@@ -177,12 +188,16 @@ else {
 }
 
 // copy the files to the target folder
-console.log("found " + files.length + " files");
+console.log(util.format(tl.loc('FoundNFiles', 'found %d files'), files.length));
 if (files.length > 0) {
+    // dump all files to debug trace.
+    files.forEach((file: string) => {
+        tl.debug('file:' + file + ' will be copied.');
+    })
     
     // clean target folder if requied
     if (cleanTargetFolder) {
-        console.log('Cleaning target folder: ' + targetFolder);
+        console.log(tl.loc('CleaningTargetFolder','Cleaning target folder: ') + targetFolder);
         tl.rmRF(targetFolder); 
     }
     
@@ -227,16 +242,15 @@ if (files.length > 0) {
             var stats = exists && fs.statSync(targetPath);
       
             if (exists && stats.isFile() && !overWrite) {
-                console.log("File " + file + " already exist at " + targetPath);
+                console.log(util.format(tl.loc('FileAlreadyExistAt', 'File %s already exist at %s'), file, targetPath));
             }
             else {
-                console.log("Copying " + file + " to " + targetPath);
+                console.log(util.format(tl.loc('CopyingTo', 'Copying %s to %s'), file, targetPath));
                 tl.cp("-f", file, targetPath);                
             }
         });
     }
     catch (err) {
-        tl.error(err);
-        tl.exit(1);
+        tl.setResult(tl.TaskResult.Failed, err);
     }
 }

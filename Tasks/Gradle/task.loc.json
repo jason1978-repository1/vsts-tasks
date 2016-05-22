@@ -15,7 +15,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 14
+    "Patch": 21
   },
   "demands": [
     "java"
@@ -83,7 +83,7 @@
       "name": "testResultsFiles",
       "type": "filePath",
       "label": "ms-resource:loc.input.label.testResultsFiles",
-      "defaultValue": "**/TEST-*.xml",
+      "defaultValue": "**/build/test-results/TEST-*.xml",
       "required": true,
       "groupName": "junitTestResults",
       "helpMarkDown": "ms-resource:loc.input.help.testResultsFiles",
@@ -109,18 +109,19 @@
       "helpMarkDown": "ms-resource:loc.input.help.codeCoverageTool",
       "options": {
         "None": "None",
-        "JaCoCo": "JaCoCo"
+        "JaCoCo": "JaCoCo",
+        "Cobertura": "Cobertura"
       }
     },
     {
       "name": "classFilesDirectories",
       "type": "string",
       "label": "ms-resource:loc.input.label.classFilesDirectories",
-      "defaultValue": "build/classes/main",
+      "defaultValue": "build/classes/main/",
       "required": true,
       "groupName": "codeCoverage",
       "helpMarkDown": "ms-resource:loc.input.help.classFilesDirectories",
-      "visibleRule": "codeCoverageTool = JaCoCo"
+      "visibleRule": "codeCoverageTool = false"
     },
     {
       "name": "classFilter",
@@ -130,7 +131,7 @@
       "required": false,
       "groupName": "codeCoverage",
       "helpMarkDown": "ms-resource:loc.input.help.classFilter",
-      "visibleRule": "codeCoverageTool = JaCoCo"
+      "visibleRule": "codeCoverageTool != None"
     },
     {
       "name": "javaHomeSelection",

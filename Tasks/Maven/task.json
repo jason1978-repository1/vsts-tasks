@@ -16,9 +16,9 @@
     "version": {
         "Major": 1,
         "Minor": 0,
-        "Patch": 19
+        "Patch": 27
     },
-   "minimumAgentVersion": "1.91.0",
+   "minimumAgentVersion": "1.89.0",
     "instanceNameFormat": "Maven $(mavenPOMFile)",
     "groups": [
         {
@@ -104,7 +104,8 @@
             "helpMarkDown": "Select the code coverage tool.",
             "options": {
                 "None": "None",
-                "JaCoCo": "JaCoCo"
+                "JaCoCo": "JaCoCo",
+                "Cobertura": "Cobertura"
             }
         },
         {
@@ -114,8 +115,8 @@
             "defaultValue": "",
             "required": false,
             "groupName": "codeCoverage",
-            "helpMarkDown": "Comma separated list of filters to include or exclude classes from collecting code coverage. For example, +:com.*,+:org.*,-:my.app*.*. Refer http://www.eclemma.org/jacoco/trunk/doc/maven.html.",
-            "visibleRule": "codeCoverageTool = JaCoCo"
+            "helpMarkDown": "Comma separated list of filters to include or exclude classes from collecting code coverage. For example: `+:com.*`,`+:org.*`,`-:my.app*.*`.",
+            "visibleRule": "codeCoverageTool != None"
         }, 
         {
             "name": "classFilesDirectories",
@@ -123,8 +124,8 @@
             "label": "Class Files Directories",
             "required": false,
             "groupName": "codeCoverage",
-            "helpMarkDown": "This field is required for a multi module project. Code coverage reports are created using ANT task. Comma separated list of directories containing class files, archive files(jar, war etc.). Directories and archives are searched recursively for class files. Code coverage is reported for class files present in the directories. For example, classes1/Tests,classes2/Tests2. Refer http://www.eclemma.org/jacoco/trunk/doc/ant.html",
-            "visibleRule": "codeCoverageTool = JaCoCo"
+            "helpMarkDown": "This field is required for a multi module project. Code coverage reports are created using ANT task. Specify comma seperated list of relative paths from Maven POM file to directories containing class files, archive files(jar, war etc.). Code coverage is reported for class files present in the directories. For example: target/classes,target/testClasses.",
+	    "visibleRule": "codeCoverageTool = JaCoCo"
         },	
         {
             "name": "srcDirectories",
@@ -133,9 +134,9 @@
             "defaultValue": "",
             "required": false,
             "groupName": "codeCoverage",
-            "helpMarkDown": "This field is required for a multi module project. Code coverage reports are created using ANT task. Specify source directories for code coverage reports to include highlighted source code. For example, src/java,src/Test. Refer http://www.eclemma.org/jacoco/trunk/doc/ant.html",
-            "visibleRule": "codeCoverageTool = JaCoCo"
-        },		
+            "helpMarkDown": "This field is required for a multi module project. Code coverage reports are created using ANT task. Specify comma seperated list of relative paths from Maven POM file to source directories. Code coverage reports will use these to highlight source code. For example: src/java,src/Test.",
+	    "visibleRule": "codeCoverageTool = JaCoCo"
+        },
         {
             "name":"javaHomeSelection",
             "type":"radio",
@@ -175,18 +176,51 @@
             "helpMarkDown": "Sets JAVA_HOME to the given path.",
             "visibleRule":"javaHomeSelection = Path"
         },
-        { 
-            "name": "jdkArchitecture", 
-            "type": "pickList", 
-            "label": "JDK Architecture", 
-            "defaultValue": "x86",
-            "required": false,
-            "helpMarkDown": "Optionally supply the architecture (x86, x64) of JDK.",
-            "groupName": "advanced",
-            "options": {
-                "x86": "x86",
-                "x64": "x64"
-            }
+        {
+          "name": "jdkArchitecture",
+          "type": "pickList",
+          "label": "JDK Architecture",
+          "defaultValue": "x86",
+          "required": false,
+          "helpMarkDown": "Optionally supply the architecture (x86, x64) of JDK.",
+          "groupName": "advanced",
+          "options": {
+            "x86": "x86",
+            "x64": "x64"
+          }
+        },
+        {
+          "name": "mavenVersionSelection",
+          "type": "radio",
+          "label": "Maven Version",
+          "defaultValue": "Default",
+          "required": true,
+          "groupName": "advanced",
+          "helpMarkDown": "Uses either the default Maven version or the version in the specified custom path.",
+          "options": {
+            "Default": "Default",
+            "Path": "Custom Path"
+          }
+        },
+        {
+          "name": "mavenPath",
+          "type": "string",
+          "label": "Maven Path",
+          "required": true,
+          "groupName": "advanced",
+          "defaultValue": "",
+          "helpMarkDown": "Supply the custom path to the Maven installation (e.g., /usr/share/maven).",
+          "visibleRule": "mavenVersionSelection = Path"
+        },
+        {
+          "name": "mavenSetM2Home",
+          "type": "boolean",
+          "label": "Set M2_HOME variable",
+          "required": true,
+          "defaultValue": "false",
+          "groupName": "advanced",
+          "helpMarkDown": "Set M2_HOME variable to custom Maven installation path.",
+          "visibleRule": "mavenVersionSelection = Path"
         },
         {
             "name": "sqAnalysisEnabled",
@@ -195,7 +229,7 @@
             "required": true,
             "defaultValue": "false",
             "groupName": "SQAnalysis",
-            "helpMarkDown": "Run a [SonarQube](http://www.sonarqube.org/) analysis after executing the current goals. 'install' or 'package' goals should be executed first."
+            "helpMarkDown": "Run a [SonarQube analysis](http://go.microsoft.com/fwlink/?LinkID=708598) after executing the current goals. 'install' or 'package' goals should be executed first."
         },
         {
             "name": "sqConnectedServiceName",

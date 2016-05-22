@@ -16,16 +16,23 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 27
+    "Patch": 45
   },
   "demands": [
     "azureps"
   ],
-  "minimumAgentVersion": "1.90.0",
+  "minimumAgentVersion": "1.92.0",
+  "groups": [
+    {
+      "name": "output",
+      "displayName": "ms-resource:loc.group.displayName.output",
+      "isExpanded": true
+    }
+  ],
   "inputs": [
     {
       "name": "ConnectedServiceName",
-      "type": "connectedService:Azure:UsernamePassword,ServicePrincipal",
+      "type": "connectedService:Azure",
       "label": "ms-resource:loc.input.label.ConnectedServiceName",
       "defaultValue": "",
       "required": true,
@@ -40,6 +47,7 @@
       "helpMarkDown": "ms-resource:loc.input.help.action",
       "options": {
         "Create Or Update Resource Group": "Create Or Update Resource Group",
+        "Select Resource Group": "Select Resource Group",
         "Start": "Start Virtual Machines",
         "Stop": "Stop Virtual Machines",
         "Restart": "Restart Virtual Machines",
@@ -62,8 +70,18 @@
       "required": true,
       "helpMarkDown": "ms-resource:loc.input.help.location",
       "options": {
+        "Australia East": "Australia East",
+        "Australia Southeast": "Australia Southeast",
+        "Brazil South": "Brazil South",
+        "Central US": "Central US",
         "East Asia": "East Asia",
         "East US": "East US",
+        "East US 2 ": "East US 2 ",
+        "Japan East": "Japan East",
+        "Japan West": "Japan West",
+        "North Central US": "North Central US",
+        "North Europe": "North Europe",
+        "South Central US": "South Central US",
         "Southeast Asia": "Southeast Asia",
         "West Europe": "West Europe",
         "West US": "West US"
@@ -99,14 +117,15 @@
       "required": false,
       "helpMarkDown": "ms-resource:loc.input.help.overrideParameters",
       "visibleRule": "action = Create Or Update Resource Group"
-    }
-  ],
-  "sourceDefinitions": [
+    },
     {
-      "target": "resourceGroupName",
-      "endpoint": "https://management.core.windows.net/subscriptions/$(authKey.SubscriptionId)/resourcegroups?api-version=2015-01-01",
-      "selector": "jsonpath:$.value[*].name",
-      "authKey": "$(ConnectedServiceName)"
+      "name": "outputVariable",
+      "type": "string",
+      "label": "ms-resource:loc.input.label.outputVariable",
+      "required": false,
+      "defaultValue": "",
+      "groupName": "output",
+      "helpMarkDown": "ms-resource:loc.input.help.outputVariable"
     }
   ],
   "instanceNameFormat": "ms-resource:loc.instanceNameFormat",

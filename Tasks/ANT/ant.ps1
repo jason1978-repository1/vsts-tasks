@@ -4,7 +4,7 @@
     [string]$targets,
     [string]$publishJUnitResults,   
     [string]$testResultsFiles,
-    [string]$testRunTitle, 
+    [string]$testRunTitle,
     [string]$codeCoverageTool,
     [string]$classFilesDirectories,
     [string]$classFilter,
@@ -12,8 +12,14 @@
     [string]$javaHomeSelection,
     [string]$jdkVersion,
     [string]$jdkArchitecture,
-    [string]$jdkUserInputPath
+    [string]$jdkUserInputPath,
+    [string]$antHomeUserInputPath
 )
+
+Function CmdletHasMember($memberName) {
+    $publishParameters = (gcm Publish-TestResults).Parameters.Keys.Contains($memberName) 
+    return $publishParameters
+}
 
 Write-Verbose 'Entering Ant.ps1'
 Write-Verbose "antBuildFile = $antBuildFile"
@@ -25,8 +31,9 @@ Write-Verbose "javaHomeSelection = $javaHomeSelection"
 Write-Verbose "jdkVersion = $jdkVersion"
 Write-Verbose "jdkArchitecture = $jdkArchitecture"
 Write-Verbose "jdkUserInputPath = $jdkUserInputPath"
-
-$isCoverageEnabled = !$codeCoverageTool.equals("None")
+Write-Verbose "antHomeUserInputPath = $antHomeUserInputPath"
+    
+$isCoverageEnabled = !($codeCoverageTool -eq "None")
 if($isCoverageEnabled)
 {
     Write-Verbose "codeCoverageTool = $codeCoverageTool" 
@@ -45,6 +52,23 @@ if(!$antBuildFile)
 import-module "Microsoft.TeamFoundation.DistributedTask.Task.Internal"
 import-module "Microsoft.TeamFoundation.DistributedTask.Task.Common"
 import-module "Microsoft.TeamFoundation.DistributedTask.Task.TestResults"
+
+# Determine if ANT_HOME should be set by path provided by user
+if($antHomeUserInputPath)
+{
+    Write-Verbose "Evaluating provided path for ANT_HOME of '$antHomeUserInputPath'"
+    if(Test-Path -LiteralPath $antHomeUserInputPath)
+    {
+        Write-Verbose "Using path from user input to set ANT_HOME"
+        Write-Host "Setting ANT_HOME to $antHomeUserInputPath"
+        $env:ANT_HOME = $antHomeUserInputPath
+        Write-Verbose "ANT_HOME set to $env:ANT_HOME"
+    }
+    else
+    {
+        throw (Get-LocalizedString -Key "The specified ANT_HOME path does not exist. Please provide a valid path.")
+    }
+}
 
 # If JAVA_HOME is being set by choosing a JDK version find the path to that specified version else use the path given by the user
 $jdkPath = $null
@@ -86,24 +110,64 @@ $buildRootPath = Split-Path $antBuildFile -Parent
 $reportDirectoryName = [guid]::NewGuid()
 $reportDirectory = Join-Path $buildRootPath $reportDirectoryName
 
-$summaryFileName = "summary.xml"
+if($isCoverageEnabled)
+{
+	if ($codeCoverageTool -eq "Cobertura")
+	{
+		$summaryFileName = "coverage.xml"
+	}
+	ElseIf ($codeCoverageTool -eq "JaCoCo")
+	{
+		$summaryFileName = "summary.xml"
+	}
+}
+
+
+
 $summaryFile = Join-Path $buildRootPath $reportDirectoryName 
 $summaryFile = Join-Path $summaryFile $summaryFileName
 # ensuring unique code coverage report task name by using guid
 $CCReportTask = "CodeCoverage_" +[guid]::NewGuid()
 
+$reportBuildFileName = [guid]::NewGuid().tostring() + ".xml"
+$reportBuildFile = Join-Path $buildRootPath $reportBuildFileName
+$instrumentedClassesDirectory = Join-Path $buildRootPath "InstrumentedClasses"
+
 if($isCoverageEnabled)
 {
-   # Enable code coverage in build file
-   Enable-CodeCoverage -BuildTool 'Ant' -BuildFile $antBuildFile -CodeCoverageTool $codeCoverageTool -ClassFilter $classFilter -ClassFilesDirectories $classFilesDirectories -SourceDirectories $srcDirectories -SummaryFile $summaryFileName -ReportDirectory $reportDirectoryName -CCReportTask $CCReportTask -ErrorAction Stop
-   Write-Verbose "Code coverage is successfully enabled." -Verbose
+   try
+   {
+	# Enable code coverage in build file
+	if ($codeCoverageTool -eq "Cobertura")
+	{
+		$coberturaCCFile = Join-Path $buildRootPath "cobertura.cer"
+		if(Test-Path $coberturaCCFile)
+		{
+			# delete any previous cobertura code coverage file
+			rm -r $coberturaCCFile -force | Out-Null
+		}		
+		
+		if(Test-Path $instrumentedClassesDirectory)
+		{
+			# delete any previous cobertura instrumented classes
+			rm -r $instrumentedClassesDirectory -force | Out-Null
+		}
+	}
+	
+	Enable-CodeCoverage -BuildTool 'Ant' -BuildFile $antBuildFile -CodeCoverageTool $codeCoverageTool -ClassFilter $classFilter -ClassFilesDirectories $classFilesDirectories -SourceDirectories $srcDirectories -SummaryFile $summaryFileName -ReportDirectory $reportDirectory -CCReportTask $CCReportTask -ReportBuildFile $reportBuildFile
+	Write-Verbose "Code coverage is successfully enabled." -Verbose
+   }
+   catch
+   {
+	Write-Warning "Enabling code coverage failed. Check the build logs for errors" -Verbose
+   }
 }
 else
 {
     Write-Verbose "Option to enable code coverage was not selected and is being skipped." -Verbose
 }	
 
-Write-Verbose "Running Ant..."
+Write-Verbose "Running Ant..." -Verbose
 Invoke-Ant -AntBuildFile $antBuildFile -Options $options -Targets $targets
 
 # Publish test results files
@@ -120,7 +184,19 @@ if($publishJUnitResultsFromAntBuild)
     else
     {
         Write-Verbose "Calling Publish-TestResults"
-        Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext -RunTitle $testRunTitle
+	$runTitleMemberExists = CmdletHasMember "RunTitle"
+	if($runTitleMemberExists)
+	{
+		Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext -RunTitle $testRunTitle
+	}
+	else
+	{
+		if(!([string]::IsNullOrWhiteSpace($testRunTitle)))
+		{
+			Write-Warning "Update the build agent to be able to use the custom run title feature."
+		}
+		Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext
+	}
     }    
 }
 else
@@ -131,30 +207,40 @@ else
 # check if code coverage has been enabled
 if($isCoverageEnabled)
 {
+	
    # run report code coverage task which generates code coverage reports.
    $reportsGenerationFailed = $false
    Write-Verbose "Collecting code coverage reports" -Verbose
    try
    {
-		Invoke-Ant -AntBuildFile $antBuildFile -Targets $CCReportTask 
+	if(Test-Path $reportBuildFile)
+	{
+		# This will handle compat between S91 and S92
+		Invoke-Ant -AntBuildFile $reportBuildFile -Targets $CCReportTask
+	}
+	else
+	{
+		Invoke-Ant -AntBuildFile $antBuildFile -Targets $CCReportTask
+	}
    }
    catch
    {
-		$reportsGenerationFailed = $true
+	$reportsGenerationFailed = $true
    }
    
-   if(-not $reportsGenerationFailed -and (Test-Path $summaryFile))
-   {
+	
+	if(-not $reportsGenerationFailed -and (Test-Path $summaryFile))
+   	{
 		Write-Verbose "Summary file = $summaryFile" -Verbose
 		Write-Verbose "Report directory = $reportDirectory" -Verbose
 		Write-Verbose "Calling Publish-CodeCoverage" -Verbose
 		Publish-CodeCoverage -CodeCoverageTool $codeCoverageTool -SummaryFileLocation $summaryFile -ReportDirectory $reportDirectory -Context $distributedTaskContext    
-   }
-   else
-   {
-        Write-Host "##vso[task.logissue type=warning;code=006003;]"
+   	}
+   	else
+   	{
+        	Write-Host "##vso[task.logissue type=warning;code=006003;]"
 		Write-Warning "No code coverage results found to be published. This could occur if there were no tests executed or there was a build failure. Check the ant output for details." -Verbose
-   }
+   	}
 }
 
 if(Test-Path $reportDirectory)
@@ -163,6 +249,17 @@ if(Test-Path $reportDirectory)
    rm -r $reportDirectory -force | Out-Null
 }
 
+if(Test-Path $reportBuildFile)
+{
+   # delete any previous code coverage report build file
+   rm -r $reportBuildFile -force | Out-Null
+}
+
+if(Test-Path $instrumentedClassesDirectory)
+{
+   # delete any previous instrumented classes directory
+   rm -r $instrumentedClassesDirectory -force | Out-Null
+}
 Write-Verbose "Leaving script Ant.ps1"
 
 

@@ -1,28 +1,23 @@
+/// <reference path="../../definitions/vso-task-lib.d.ts" />
 var path = require('path');
-var tl = require('vso-task-lib');
-
-var gt = new tl.ToolRunner(tl.which('gulp', true));
-
-// optional - no tasks will concat nothing
-gt.arg(tl.getDelimitedInput('targets', ' ', false));
-
-gt.arg('--gulpfile');
+var tl = require('vso-task-lib/vsotask');
+var nt = tl.createToolRunner(tl.which('node', true));
 var gulpFile = tl.getPathInput('gulpFile', true);
-gt.arg(gulpFile);
-
-gt.arg(tl.getDelimitedInput('arguments', ' ', false));
-
 var cwd = tl.getInput('cwd', false);
 if (!cwd) {
-	cwd = path.dirname(gulpFile);
+    cwd = path.dirname(gulpFile);
 }
+var gulpjs = tl.getInput('gulpjs', true);
+tl.debug('check path : ' + gulpjs);
+tl.checkPath(gulpjs, 'gulpjs');
+nt.arg(gulpjs);
+// optional - no tasks will concat nothing
+nt.arg(tl.getDelimitedInput('targets', ' ', false));
+nt.arg('--gulpfile');
+nt.arg(gulpFile);
+nt.arg(tl.getDelimitedInput('arguments', ' ', false));
 tl.cd(cwd);
-
-gt.exec()
-.then(function(code) {
-	tl.exit(code);
-})
-.fail(function(err) {
-	tl.debug('taskRunner fail');
-	tl.exit(1);
-})
+nt.exec(null)
+    .fail(function (err) {
+    tl.setResult(tl.TaskResult.Failed, err.message);
+});

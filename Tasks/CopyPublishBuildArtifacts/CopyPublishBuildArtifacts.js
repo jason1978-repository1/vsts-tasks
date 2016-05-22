@@ -98,13 +98,16 @@ else {
         var map = {};
         for (var i = 0; i < contents.length; i++) {
             var pattern = contents[i].trim();
+            if (pattern.length == 0) {
+                continue;
+            }
             tl.debug('Matching ' + pattern);
             var realPattern = path.join(findRoot, pattern);
             tl.debug('Actual pattern: ' + realPattern);
             // in debug mode, output some match candidates
             tl.debug('Listing a few potential candidates...');
-            for (var i = 0; i < 10 && i < allFiles.length; i++) {
-                tl.debug('  ' + allFiles[i]);
+            for (var k = 0; k < 10 && k < allFiles.length; k++) {
+                tl.debug('  ' + allFiles[k]);
             }
             // let minimatch do the actual filtering
             var matches = tl.match(allFiles, realPattern, { matchBase: true });
@@ -157,12 +160,14 @@ else {
             // upload or copy
             if (artifactType === "container") {
                 data["containerfolder"] = artifactName;
+                // add localpath to ##vso command's properties for back compat of old Xplat agent
                 data["localpath"] = stagingFolder;
                 tl.command("artifact.upload", data, stagingFolder);
             }
             else if (artifactType === "filepath") {
                 tl.mkdirP(targetPath);
                 tl.cp("-Rf", stagingFolder, targetPath);
+                // add artifactlocation to ##vso command's properties for back compat of old Xplat agent
                 data["artifactlocation"] = targetPath;
                 tl.command("artifact.associate", data, targetPath);
             }

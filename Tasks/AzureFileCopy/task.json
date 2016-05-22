@@ -13,12 +13,12 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 18
+    "Patch": 25
   },
   "demands": [
     "azureps"
   ],
-  "minimumAgentVersion": "1.90.0",
+  "minimumAgentVersion": "1.92.0",
   "inputs": [
     {
       "name": "SourcePath",
@@ -84,6 +84,28 @@
       "visibleRule": "Destination = AzureVMs"
     },
     {
+      "name": "ResourceFilteringMethod",
+      "type": "radio",
+      "label": "Select Machines By",
+      "required": false,
+      "defaultValue": "machineNames",
+      "options": {
+        "machineNames": "Machine Names",
+        "tags": "Tags"
+      },
+      "helpMarkDown": "Optionally, select a subset of VMs in resource group either by providing VMs host name or tags. [Tags](https://azure.microsoft.com/en-in/documentation/articles/virtual-machines-tagging-arm/) are supported for resources created via the Azure Resource Manager only.",
+      "visibleRule": "Destination = AzureVMs"
+    },
+    {
+      "name": "MachineNames",
+      "type": "string",
+      "label": "Filter Criteria",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Provide a list of VMs host name like ffweb, ffdb, or tags like Role:DB, Web; OS:Win8.1. Note the delimiters used for tags are &#44;(comma), &#58;(colon) and &#59;(semicolon). If multiple tags are provided, then the task will run in all the VMs with the specified tags. The default is to run the task in all the VMs.",
+      "visibleRule": "Destination = AzureVMs"
+    },
+    {
       "name": "vmsAdminUserName",
       "type": "string",
       "label": "Admin Login",
@@ -98,7 +120,7 @@
       "label": "Password",
       "defaultValue": "",
       "required": true,
-      "helpMarkDown": "Administrator Password of the VMs.",
+      "helpMarkDown": "Administrator Password of the VMs. <br>It can accept variable defined in Build/Release definitions as '$(passwordVariable)'. <br>You may mark variable type as 'secret' to secure it.",
       "visibleRule": "Destination = AzureVMs"
     },
     {
@@ -109,6 +131,14 @@
       "required": true,
       "helpMarkDown": "Local path on the target machines for copying the files from the source. Environment variable can be used like $env:windir\\BudgetIT\\Web.",
       "visibleRule": "Destination = AzureVMs"
+    },
+    {
+      "name": "AdditionalArguments",
+      "type": "multiLine",
+      "label": "Additional Arguments",
+      "required": false,
+      "defaultValue": "",
+      "helpMarkDown": "Additional AzCopy.exe arguments that will be applied when uploading to blob or uploading to VM like, /NC:10."
     },
     {
       "name": "CopyFilesInParallel",

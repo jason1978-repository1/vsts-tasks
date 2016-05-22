@@ -4,6 +4,69 @@ $ErrorActionPreference = 'Stop'
 $doSkipCACheckOption = '-SkipCACheck'
 $doNotSkipCACheckOption = ''
 
+# Telemetry
+
+$telemetryCodes = 
+@{
+  "PREREQ_NoWinRMHTTP_Port" = "PREREQ001";
+  "PREREQ_NoWinRMHTTPSPort" = "PREREQ002";
+  "PREREQ_NoResources" = "PREREQ003";
+  "PREREQ_NoOutputVariableForSelectActionInAzureRG" = "PREREQ004";
+  "PREREQ_InvalidServiceConnectionType" = "PREREQ_InvalidServiceConnectionType";
+  "PREREQ_AzureRMModuleNotFound" = "PREREQ_AzureRMModuleNotFound";
+  "PREREQ_InvalidFilePath" = "PREREQ_InvalidFilePath";
+  "PREREQ_StorageAccountNotFound" = "PREREQ_StorageAccountNotFound";
+  "PREREQ_NoVMResources" = "PREREQ_NoVMResources";
+  "PREREQ_UnsupportedAzurePSVerion" = "PREREQ_UnsupportedAzurePSVerion";
+  "PREREQ_NoRGOrVMResources" = "PREREQ_NoRGOrVMResources"
+
+  "AZUREPLATFORM_BlobUploadFailed" = "AZUREPLATFORM_BlobUploadFailed";
+  "AZUREPLATFORM_UnknownGetRMVMError" = "AZUREPLATFORM_UnknownGetRMVMError";
+
+  "UNKNOWNPREDEP_Error" = "UNKNOWNPREDEP001";
+  "UNKNOWNDEP_Error" = "UNKNOWNDEP_Error";
+
+  "DEPLOYMENT_Failed" = "DEP001";
+  "DEPLOYMENT_FetchPropertyFromMap" = "DEPLOYMENT_FetchPropertyFromMap";
+  "DEPLOYMENT_CSMDeploymentFailed" = "DEPLOYMENT_CSMDeploymentFailed";  
+  "DEPLOYMENT_PerformActionFailed" = "DEPLOYMENT_PerformActionFailed";
+
+  "FILTERING_IncorrectFormat" = "FILTERING_IncorrectFormat";
+  "FILTERING_NoVMResources" = "FILTERING_NoVMResources";
+  "FILTERING_MachinesNotPresentInRG" = "FILTERING_MachinesNotPresentInRG"
+ }
+
+function Write-Telemetry
+{
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory=$True,Position=1)]
+    [string]$codeKey,
+
+    [Parameter(Mandatory=$True,Position=2)]
+    [string]$taskId
+    )
+  
+  if($telemetrySet)
+  {
+    return
+  }
+
+  $code = $telemetryCodes[$codeKey]
+  $telemetryString = "##vso[task.logissue type=error;code=" + $code + ";TaskId=" + $taskId + ";]"
+  Write-Host $telemetryString
+  $telemetrySet = $true
+}
+
+function Write-TaskSpecificTelemetry
+{
+    param(
+      [string]$codeKey
+      )
+
+    Write-Telemetry "$codeKey" "EB72CB01-A7E5-427B-A8A1-1B31CCAC8A43"
+}
+
 function Does-RequireSwitchAzureMode
 {
     $azureVersion = Get-AzureCmdletsVersion
@@ -43,6 +106,7 @@ function Validate-AzurePowershellVersion
     
     if(!$versionCompatible)
     {
+        Write-TaskSpecificTelemetry "PREREQ_UnsupportedAzurePSVerion"
         Throw (Get-LocalizedString -Key "The required minimum version {0} of the Azure Powershell Cmdlets are not installed. You can follow the instructions at http://azure.microsoft.com/en-in/documentation/articles/powershell-install-configure/ to get the latest Azure powershell" -ArgumentList $minimumAzureVersion)
     }
 

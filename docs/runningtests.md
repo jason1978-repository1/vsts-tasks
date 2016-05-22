@@ -16,12 +16,11 @@ $ gulp test
 
   Gulp Suite
 Running: gulptask.js
-Running: $(currentDirectory)\Gulptask.ps1
-    ✓ Gulp with gulpfile
+    ✓ runs a gulpfile with cwd
 
-  iOS Suite
+  Xcode Suite
 Running: xcodebuild2.js
-    ✓ Xcode with Workspace
+    ✓ Xcode runs a workspace
 
 
 ...
@@ -29,20 +28,38 @@ Running: xcodebuild2.js
 
 # Suite Types
 
-Test suites are location in ./Tests folder in the form L#.{area}.ts
-
+Test suites are location in ./Tests folder in the form
+```
+L#.{area}.ts
+```
 L0.* is the default suite if you just run gulp test.  Levels are explained below.
 
 ## Examples:
 
+Run the L0 tests (default)
+```bash
+gulp test
+```
+
+or
+
+```bash
+gulp test --suite L0/*
+```
+
 Run the L0 gulp tests
 ```bash
-gulp test --suite L0.gulp
+gulp test --suite L0/Gulp
 ```
 
 Run all gulp tests
 ```bash
-gulp test --suite *gulp
+gulp test --suite '*/Gulp'
+```
+
+Run all tests
+```bash
+gulp test --suite '**'
 ```
 
 ## Suite Levels
@@ -64,4 +81,6 @@ We will be starting and favor writing and running L0 tests.  After L0s are writt
 
 The point of the tests is to test to task script and it's arcs.  It is a non-goal to test the externals.
 
- 
+# Test output
+
+Set the environment variable TASK_TEST_TRACE to 1 for STDOUT to be printed from the test.

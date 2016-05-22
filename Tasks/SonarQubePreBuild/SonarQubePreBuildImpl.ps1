@@ -38,43 +38,43 @@ function CreateCommandLineArgs
     # To avoid this, ignore the Append return value using [void]
     [void]$sb.Append("begin");
 
-    [void]$sb.Append(" /k:""$projectKey"" /n:""$projectName"" /v:""$projectVersion""");
+    [void]$sb.Append(" /k:" + (EscapeArg($projectKey)) + " /n:" + (EscapeArg($projectName)) + " /v:" + (EscapeArg($projectVersion)));
 
     if ([String]::IsNullOrWhiteSpace($serverUrl))
     {   
 		throw "Please setup a generic endpoint and specify the SonarQube Url as the Server Url" 
 	}
 
-	[void]$sb.Append(" /d:sonar.host.url=""$serverUrl""")
+	[void]$sb.Append(" /d:sonar.host.url=" + (EscapeArg($serverUrl))) 
 
     if (![String]::IsNullOrWhiteSpace($serverUsername))
     {
-        [void]$sb.Append(" /d:sonar.login=""$serverUsername""")
+        [void]$sb.Append(" /d:sonar.login=" + (EscapeArg($serverUsername))) 
     }
 
     if (![String]::IsNullOrWhiteSpace($serverPassword))
     {
-        [void]$sb.Append(" /d:sonar.password=""$serverPassword""")
+        [void]$sb.Append(" /d:sonar.password=" + (EscapeArg($serverPassword))) 
     }
 
     if (![String]::IsNullOrWhiteSpace($dbUrl))
     {
-        [void]$sb.Append(" /d:sonar.jdbc.url=""$dbUrl""")
+        [void]$sb.Append(" /d:sonar.jdbc.url=" + (EscapeArg($dbUrl))) 
     }
 
     if (![String]::IsNullOrWhiteSpace($dbUsername))
     {
-        [void]$sb.Append(" /d:sonar.jdbc.username=""$dbUsername""")
+        [void]$sb.Append(" /d:sonar.jdbc.username=" + (EscapeArg($dbUsername))) 
     }
 
     if (![String]::IsNullOrWhiteSpace($dbPassword))
     {
-        [void]$sb.Append(" /d:sonar.jdbc.password=""$dbPassword""")
+        [void]$sb.Append(" /d:sonar.jdbc.password=" + (EscapeArg($dbPassword))) 
     }
 
     if (![String]::IsNullOrWhiteSpace($additionalArguments))
     {
-        [void]$sb.Append(" " + $additionalArguments)
+        [void]$sb.Append(" " + $additionalArguments) # the user should take care of escaping the extra settings
     }
 
     if (IsFilePathSpecified $configFile)
@@ -84,7 +84,7 @@ function CreateCommandLineArgs
             throw "Could not find the specified configuration file: $configFile" 
         }
 
-        [void]$sb.Append(" /s:$configFile")
+        [void]$sb.Append(" /s:" + (EscapeArg($configFileParam))) 
     }
 
     return $sb.ToString();
@@ -112,13 +112,13 @@ function UpdateArgsForPullRequestAnalysis($cmdLineArgs, $serviceEndpoint)
         Write-Verbose "SonarQube server version:$sqServerVersion"
 
         #strip out '-SNAPSHOT' if it is present in version (developer versions of SonarQube might return version in this format: 5.2-SNAPSHOT)
-        $sqServerVersion = $sqServerVersion.ToUpper().Replace("-SNAPSHOT", "")
+        $sqServerVersion = ([string]$sqServerVersion).split("-")[0]
 
         $sqVersion = New-Object -TypeName System.Version -ArgumentList $sqServerVersion
         $sqVersion5dot2 = New-Object -TypeName System.Version -ArgumentList "5.2"
 
         #For SQ version 5.2+ use issues mode, otherwise use incremental mode. Incremental mode is not supported in SQ 5.2+. -ge below calls the overloaded operator in System.Version class
-        if ($sqServerVersion -ge $sqVersion5dot2)
+        if ($sqVersion -ge $sqVersion5dot2)
         {
             $cmdLineArgs = $cmdLineArgs + " " + "/d:sonar.analysis.mode=issues" + " " + "/d:sonar.report.export.path=sonar-report.json"
         }
@@ -158,6 +158,19 @@ function GetEndpointData
 
 
 ################# Helpers ######################
+
+# When passing arguments to a process, the quotes need to be doubled and   
+# the entire string needs to be placed inside quotes to avoid issues with spaces  
+function EscapeArg  
+{  
+    param([string]$argVal)  
+  
+    $argVal = $argVal.Replace('"', '""');  
+    $argVal = '"' + $argVal + '"';  
+  
+    return $argVal;  
+}  
+
 
 # Set a variable in a property bag that is accessible by all steps
 # To retrieve the variable use $val = Get-Variable $distributedTaskContext "varName"

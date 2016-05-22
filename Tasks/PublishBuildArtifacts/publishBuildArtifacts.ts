@@ -3,11 +3,12 @@
 /// <reference path="../../definitions/vso-task-lib.d.ts" />
 
 import fs = require('fs');
+import path = require('path');
 import Q = require('q');
 var tl = require("vso-task-lib");
 
 // content is a folder contain artifacts needs to publish.
-var artifactContents: string = tl.getPathInput('ArtifactContents');
+var pathtoPublish: string = tl.getPathInput('PathtoPublish');
 var artifactName: string = tl.getInput('ArtifactName');
 var artifactType: string = tl.getInput('ArtifactType');
 // targetPath is used for file shares
@@ -15,11 +16,11 @@ var targetPath: string = tl.getInput('TargetPath');
 
 if (!artifactName) {
     // nothing to do
-    tl.warning('Artifact name is not specified.');
+    tl.warning(tl.loc('ArtifactNameNotSpecified','Artifact name is not specified.'));
 }
 else if (!artifactType) {
     // nothing to do
-    tl.warning('Artifact type is not specified.');
+    tl.warning(tl.loc('ArtifactTypeNotSpecified','Artifact type is not specified.'));
 }
 else {
     artifactType = artifactType.toLowerCase();
@@ -33,12 +34,18 @@ else {
         // upload or copy
         if (artifactType === "container") {
             data["containerfolder"] = artifactName;
-            tl.command("artifact.upload", data, artifactContents);
+            
+            // add localpath to ##vso command's properties for back compat of old Xplat agent
+            data["localpath"] = pathtoPublish;
+            tl.command("artifact.upload", data, pathtoPublish);
         }
         else if (artifactType === "filepath") {
-            tl.mkdirP(targetPath);
-            tl.cp("-Rf", artifactContents, targetPath);
- 
+            var artifactPath: string = path.join(targetPath, artifactName);
+            tl.mkdirP(artifactPath);
+            tl.cp("-Rf", path.join(pathtoPublish, "*"), artifactPath);
+            
+            // add artifactlocation to ##vso command's properties for back compat of old Xplat agent
+            data["artifactlocation"] = targetPath;
             tl.command("artifact.associate", data, targetPath);
         }
     }

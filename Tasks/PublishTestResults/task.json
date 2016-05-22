@@ -13,11 +13,11 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 9
+    "Patch": 14
   },
   "demands": [ 
   ], 
-    "minimumAgentVersion": "1.91.0",
+    "minimumAgentVersion": "1.83.0",
   "groups": [
     {
       "name":"advanced",
@@ -81,6 +81,15 @@
       "required": false,
       "groupName": "advanced",
       "helpMarkDown": "Configuration for which the tests were run."
+    },
+    {
+      "name": "publishRunAttachments",
+      "type": "boolean",
+      "label": "Upload Test Attachments",
+      "defaultValue": "true",
+      "required": false,
+      "helpMarkDown": "Opt in/out of publishing test run level attachments.",
+      "groupName":  "advanced"
     }   
   ],
   "instanceNameFormat": "Publish Test Results $(testResultsFiles)",

@@ -16,13 +16,18 @@ param(
 
 )
 
+Function CmdletHasMember($memberName) {
+    $publishParameters = (gcm Publish-TestResults).Parameters.Keys.Contains($memberName) 
+    return $publishParameters
+}
+
 Write-Verbose "Entering script Gradle.ps1"
 Write-Verbose "wrapperScript = $wrapperScript"
 Write-Verbose "options = $options"
 Write-Verbose "tasks = $tasks"
 Write-Verbose "publishJUnitResults = $publishJUnitResults"
 Write-Verbose "testResultsFiles = $testResultsFiles"
-$isCoverageEnabled = !$codeCoverageTool.equals("None")
+$isCoverageEnabled = !($codeCoverageTool -eq "None")
 if($isCoverageEnabled)
 {
     Write-Verbose "codeCoverageTool = $codeCoverageTool" 
@@ -90,11 +95,35 @@ if ($jdkPath)
     Write-Verbose "JAVA_HOME set to $env:JAVA_HOME"
 }
 
-$buildRootPath = Split-Path $wrapperScript -Parent
+$buildRootPath = $cwd
+$wrapperDirectory = Split-Path $wrapperScript -Parent
 $reportDirectoryName = [guid]::NewGuid()
 $reportDirectory = Join-Path $buildRootPath $reportDirectoryName
 
-$summaryFileName = "summary.xml"
+# check if project is multi module gradle build or not
+$subprojects = Invoke-BatchScript -Path $wrapperScript -Arguments 'properties' -WorkingFolder $buildRootPath | Select-String '^subprojects: (.*)'|ForEach-Object {$_.Matches[0].Groups[1].Value}
+Write-Verbose "subprojects: $subprojects"
+$singlemodule = [string]::IsNullOrEmpty($subprojects) -or $subprojects -eq '[]'
+
+if($codeCoverageTool -eq "JaCoCo")
+{
+    $summaryFileName = "summary.xml"
+
+    if($singlemodule)
+    {
+        $reportingTaskName = "jacocoTestReport"
+    }
+    else
+    {
+        $reportingTaskName = "jacocoRootReport"
+    }
+}
+elseif($codeCoverageTool -eq "Cobertura")
+{
+    $summaryFileName = "coverage.xml"
+    $reportingTaskName = "cobertura"
+}
+
 $summaryFile = Join-Path $buildRootPath $reportDirectoryName 
 $summaryFile = Join-Path $summaryFile $summaryFileName 
 $buildFile = Join-Path $buildRootPath "build.gradle"
@@ -103,7 +132,7 @@ $buildFile = Join-Path $buildRootPath "build.gradle"
 if($isCoverageEnabled)
 {
    # Enable code coverage in build file
-   Enable-CodeCoverage -BuildTool 'Gradle' -BuildFile $buildFile -CodeCoverageTool $codeCoverageTool -ClassFilter $classFilter -ClassFilesDirectories $classFilesDirectories -SummaryFile $summaryFileName -ReportDirectory $reportDirectoryName -ErrorAction Stop
+   Enable-CodeCoverage -BuildTool 'Gradle' -BuildFile $buildFile -CodeCoverageTool $codeCoverageTool -ClassFilter $classFilter -ClassFilesDirectories $classFilesDirectories -SummaryFile $summaryFileName -ReportDirectory $reportDirectoryName -IsMultiModule (!$singlemodule) -ErrorAction Stop
    Write-Verbose "Code coverage is successfully enabled." -Verbose
 }
 else
@@ -111,7 +140,16 @@ else
     Write-Verbose "Option to enable code coverage was not selected and is being skipped." -Verbose
 }
 
-$arguments = "$options $tasks"
+
+if($isCoverageEnabled)
+{
+    $arguments = "$options $tasks $reportingTaskName"
+}
+else
+{
+	$arguments = "$options $tasks"
+}
+
 Write-Verbose "Invoking Gradle wrapper $wrapperScript $arguments"
 Invoke-BatchScript -Path $wrapperScript -Arguments $arguments -WorkingFolder $cwd
 
@@ -129,7 +167,19 @@ if($publishJUnitResultsFromAntBuild)
     else
     {
         Write-Verbose "Calling Publish-TestResults"
-        Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext -RunTitle $testRunTitle
+	$runTitleMemberExists = CmdletHasMember "RunTitle"
+	if($runTitleMemberExists)
+	{
+		Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext -RunTitle $testRunTitle
+	}
+	else
+	{
+		if(!([string]::IsNullOrWhiteSpace($testRunTitle)))
+		{
+			Write-Warning "Update the build agent to be able to use the custom run title feature."
+		}
+		Publish-TestResults -TestRunner "JUnit" -TestResultsFiles $matchingTestResultsFiles -Context $distributedTaskContext
+	}         
     }    
 }
 else

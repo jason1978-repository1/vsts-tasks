@@ -14,7 +14,8 @@ param(
     [string]$vmCreds,
     [string]$vmUserName,
     [string]$vmPassword,
-    [string]$skipCACheck
+    [string]$skipCACheck,
+    [string]$outputVariable
 )
 
 Write-Verbose -Verbose "Starting Azure Resource Group Deployment Task"
@@ -23,40 +24,84 @@ Write-Verbose -Verbose "Action = $action"
 Write-Verbose -Verbose "ResourceGroupName = $resourceGroupName"
 Write-Verbose -Verbose "Location = $location"
 Write-Verbose -Verbose "OverrideParameters = $overrideParameters"
+Write-Verbose -Verbose "OutputVariable = $outputVariable"
 
 $resourceGroupName = $resourceGroupName.Trim()
 $location = $location.Trim()
-$csmFile = $csmFile.Trim()
-$csmParametersFile = $csmParametersFile.Trim()
+$csmFile = $csmFile.Trim('"', ' ')
+$csmParametersFile = $csmParametersFile.Trim('"', ' ')
 $overrideParameters = $overrideParameters.Trim()
-
-import-module Microsoft.TeamFoundation.DistributedTask.Task.Internal
-import-module Microsoft.TeamFoundation.DistributedTask.Task.Common
-
+$outputVariable = $outputVariable.Trim()
+$telemetrySet = $false
 $ErrorActionPreference = "Stop"
 
-. ./Utility.ps1
+# Import all the dlls and modules which have cmdlets we need
+Import-Module "Microsoft.TeamFoundation.DistributedTask.Task.Internal"
+Import-Module "Microsoft.TeamFoundation.DistributedTask.Task.Common"
+Import-Module "Microsoft.TeamFoundation.DistributedTask.Task.Deployment.Internal"
 
-Validate-AzurePowershellVersion
+# Load all dependent files for execution
+Import-Module ./Utility.ps1 -Force
 
-#Handle-SwitchAzureMode
-$isSwitchAzureModeRequired = Is-SwitchAzureModeRequired
-
-if($isSwitchAzureModeRequired)
+function Handle-SelectResourceGroupAction
 {
-    Switch-AzureMode AzureResourceManager
-    . ./AzureResourceManagerWrapper.ps1
+    if([string]::IsNullOrEmpty($outputVariable))
+    {
+        Write-TaskSpecificTelemetry "PREREQ_NoOutputVariableForSelectActionInAzureRG"
+        throw (Get-LocalizedString -Key "Please provide the output variable name since you have specified the 'Select Resource Group' option.")
+    }
+
+    Instantiate-Environment -resourceGroupName $resourceGroupName -outputVariable $outputVariable
 }
 
-. ./AzureResourceManagerHelper.ps1
-
-if( $action -eq "Create Or Update Resource Group" )
+function Handle-ResourceGroupLifeCycleOperations
 {
-    Create-AzureResourceGroupHelper -csmFile $csmFile -csmParametersFile $csmParametersFile -resourceGroupName $resourceGroupName -location $location -overrideParameters $overrideParameters -isSwitchAzureModeRequired $isSwitchAzureModeRequired
-}
-else
-{
-    Perform-Action -action $action -resourceGroupName $resourceGroupName
+    $serviceEndpoint = Get-ServiceEndpoint -Name "$ConnectedServiceName" -Context $distributedTaskContext
+    if ($serviceEndpoint.Authorization.Scheme -eq 'Certificate')
+    {
+        Write-TaskSpecificTelemetry "PREREQ_InvalidServiceConnectionType"
+        throw (Get-LocalizedString -Key "Certificate based authentication only works with the 'Select Resource Group' action. Please select an Azure subscription with either Credential or SPN based authentication.")
+    }
+
+    if( $action -eq "Create Or Update Resource Group" )
+    {
+        $azureResourceGroupDeployment = Create-AzureResourceGroup -csmFile $csmFile -csmParametersFile $csmParametersFile -resourceGroupName $resourceGroupName -location $location -overrideParameters $overrideParameters
+        if(-not [string]::IsNullOrEmpty($outputVariable))
+        {
+            Instantiate-Environment -resourceGroupName $resourceGroupName -outputVariable $outputVariable
+        }
+    }
+    else
+    {
+        Perform-Action -action $action -resourceGroupName $resourceGroupName
+    }
 }
 
-Write-Verbose -Verbose "Completing Azure Resource Group Deployment Task"
+try
+{
+    Validate-AzurePowerShellVersion
+
+    $azureUtility = Get-AzureUtility
+    Write-Verbose -Verbose "Loading $azureUtility"
+    Import-Module ./$azureUtility -Force
+
+    switch ($action)
+    {
+        "Select Resource Group" {
+            Handle-SelectResourceGroupAction
+            break
+        }
+
+        default {
+            Handle-ResourceGroupLifeCycleOperations
+            break
+        }
+    }
+	
+	Write-Verbose -Verbose "Completing Azure Resource Group Deployment Task"
+}
+catch
+{
+    Write-TaskSpecificTelemetry "UNKNOWNDEP_Error"
+    throw
+}

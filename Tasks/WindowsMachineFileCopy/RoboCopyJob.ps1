@@ -115,6 +115,11 @@ param (
             }
         }       
         
+        if (-not [string]::IsNullOrWhiteSpace($additionalArguments))
+        {
+            $robocopyParameters += " $additionalArguments"
+        }
+
         return $robocopyParameters.Trim()
     }
 
@@ -147,7 +152,7 @@ param (
         $command = "net use `"$machineShare`""
         if($userName)
         {
-            $command += " /user:`"$userName`" `"$password`""
+            $command += " /user:`"$userName`" `'$password`'"
         }
         $command += " 2>&1"
         

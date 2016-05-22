@@ -1,20 +1,21 @@
 /// <reference path="../../definitions/node.d.ts"/>
 /// <reference path="../../definitions/Q.d.ts" />
 /// <reference path="../../definitions/vso-task-lib.d.ts" />
+var path = require('path');
 var tl = require("vso-task-lib");
 // content is a folder contain artifacts needs to publish.
-var artifactContents = tl.getPathInput('ArtifactContents');
+var pathtoPublish = tl.getPathInput('PathtoPublish');
 var artifactName = tl.getInput('ArtifactName');
 var artifactType = tl.getInput('ArtifactType');
 // targetPath is used for file shares
 var targetPath = tl.getInput('TargetPath');
 if (!artifactName) {
     // nothing to do
-    tl.warning('Artifact name is not specified.');
+    tl.warning(tl.loc('ArtifactNameNotSpecified', 'Artifact name is not specified.'));
 }
 else if (!artifactType) {
     // nothing to do
-    tl.warning('Artifact type is not specified.');
+    tl.warning(tl.loc('ArtifactTypeNotSpecified', 'Artifact type is not specified.'));
 }
 else {
     artifactType = artifactType.toLowerCase();
@@ -26,11 +27,16 @@ else {
         // upload or copy
         if (artifactType === "container") {
             data["containerfolder"] = artifactName;
-            tl.command("artifact.upload", data, artifactContents);
+            // add localpath to ##vso command's properties for back compat of old Xplat agent
+            data["localpath"] = pathtoPublish;
+            tl.command("artifact.upload", data, pathtoPublish);
         }
         else if (artifactType === "filepath") {
-            tl.mkdirP(targetPath);
-            tl.cp("-Rf", artifactContents, targetPath);
+            var artifactPath = path.join(targetPath, artifactName);
+            tl.mkdirP(artifactPath);
+            tl.cp("-Rf", path.join(pathtoPublish, "*"), artifactPath);
+            // add artifactlocation to ##vso command's properties for back compat of old Xplat agent
+            data["artifactlocation"] = targetPath;
             tl.command("artifact.associate", data, targetPath);
         }
     }

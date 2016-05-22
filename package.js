@@ -9,6 +9,9 @@ var os = require('os');
 
 var _strRelPath = path.join('Strings', 'resources.resjson', 'en-US');
 
+var _tempPath = path.join(__dirname, '_temp');
+shell.mkdir('-p', _tempPath);
+
 var _divider = '// *******************************************************' + os.EOL;
 var _banner = '' + _divider;
 _banner += '// GENERATED FILE - DO NOT EDIT DIRECTLY' + os.EOL;
@@ -51,6 +54,7 @@ var LOC_INSTFORMAT = 'loc.instanceNameFormat';
 var LOC_GROUPDISPLAYNAME = 'loc.group.displayName.';
 var LOC_INPUTLABEL = 'loc.input.label.';
 var LOC_INPUTHELP = 'loc.input.help.';
+var LOC_MESSAGES = 'loc.messages.';
 
 var createStrings = function(task, pkgPath, srcPath) {
 	var defer = Q.defer();
@@ -102,6 +106,14 @@ var createStrings = function(task, pkgPath, srcPath) {
 		});
 	}	
 
+	if (task.messages) {
+		for(var key in task.messages) {
+			var messageKey = LOC_MESSAGES + key;
+			strings[messageKey] = task.messages[key];
+			task.messages[key] = 'ms-resource:' + messageKey;
+		}
+	}	
+	
 	//
 	// Write the tasks.json and strings file in package and back to source
 	//
@@ -175,6 +187,18 @@ function packageTask(pkgPath){
 	        	shell.cp('-R', path.join(dirName, '*'), tgtPath);
 	        	shell.rm(path.join(tgtPath, '*.csproj'));
 	        	shell.rm(path.join(tgtPath, '*.md'));
+
+	        	// 'statically link' task-lib
+	        	if (task.execution['Node']) {
+	        		gutil.log('linking task-lib for ' + task.name);
+
+	        		var tskLibSrc = path.join(__dirname, '_temp', 'node_modules');
+	        		if (shell.test('-d', tskLibSrc)) {
+	        			new gutil.PluginError('PackageTask', 'vso-task-lib not found: ' + tskLibSrc);
+	        		}
+
+					shell.cp('-R', tskLibSrc, tgtPath);
+	        	}
 	        	return;        	
 	        })
 	        .then(function() {

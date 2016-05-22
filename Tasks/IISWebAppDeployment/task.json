@@ -14,7 +14,7 @@
   "version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 3
+    "Patch": 8
   },
   "demands": [
   ],
@@ -48,7 +48,7 @@
       "label": "Machines",
       "defaultValue": "",
       "required": true,
-      "helpMarkDown": "Enter the comma seperated list of machines for deployment."
+      "helpMarkDown": "Provide a comma separated list of machine IP addresses or FQDNs along with ports. Port is defaulted based on the selected protocol. <br>Eg: dbserver.fabrikam.com,dbserver_int.fabrikam.com:5986,192.168.12.34:5986 <br>Or provide output variable of other tasks. Eg: $(variableName)"
     },
     {
       "name": "AdminUserName",
@@ -56,7 +56,7 @@
       "label": "Admin Login",
       "defaultValue": "",
       "required": false,
-      "helpMarkDown": "Provide administrator user name for connecting to target machine."
+      "helpMarkDown": "Administrator login for the target machines."
     },
     {
       "name": "AdminPassword",
@@ -64,7 +64,7 @@
       "label": "Password",
       "defaultValue": "",
       "required": false,
-      "helpMarkDown": "Provide administrator user password for connecting to target machine."
+      "helpMarkDown": "Administrator password for the target machines. <br>It can accept variable defined in Build/Release definitions as '$(passwordVariable)'. <br>You may mark variable type as 'secret' to secure it. "
     },
     {
       "name": "WinRMProtocol",
@@ -76,7 +76,7 @@
         "Http": "HTTP",
         "Https": "HTTPS"
       },
-      "helpMarkDown": "Whether WinRM connections or over HTTP or HTTPS. Defaulted to HTTPS."
+      "helpMarkDown": "Select the protocol to use for the WinRM connection with the machine(s). Default is HTTPS."
     },
     {
       "name": "TestCertificate",
@@ -85,29 +85,7 @@
       "defaultValue": "true",
       "visibleRule": "WinRMProtocol = Https",
       "required": false,
-      "helpMarkDown": "Setting it to true will connect to target machine using test certificate."
-    },
-    {
-      "name": "ResourceFilteringMethod",
-      "type": "radio",
-      "label": "Select Machines By",
-      "required": false,
-      "defaultValue": "machineNames",
-      "visibleRule": "WinRMProtocol = Invalid",
-      "options": {
-        "machineNames": "Machine Names",
-        "tags": "Tags"
-      },
-      "helpMarkDown": "Optionally, select a subset of machines either by providing machine names or tags."
-    },
-    {
-      "name": "MachineFilter",
-      "type": "string",
-      "label": "Deploy to Machines",
-      "required": false,
-      "defaultValue": "",
-      "visibleRule": "WinRMProtocol = Invalid",
-      "helpMarkDown": "Provide a list of machines like, dbserver.fabrikam.com, webserver.fabrikam.com, 192.168.12.34, or tags like, Role:DB; OS:Win8.1. If multiple tags are provided, then the task will run in all the machines with the specified tags. For Azure Resource Groups, provide the virtual machine's name like, ffweb, ffdb. The default is to run the task in all machines of the machine/resource group."
+      "helpMarkDown": "Select the option to skip validating the authenticity of the machine's certificate by a trusted certification authority. The parameter is required for the WinRM HTTPS protocol."
     },
     {
       "name": "WebDeployPackage",
@@ -403,6 +381,28 @@
       "required": false,
       "groupName": "advanced",
       "helpMarkDown": "Setting it to true will deploy the Web application in-parallel on the target machines."
+    },
+	{
+      "name": "ResourceFilteringMethod",
+      "type": "radio",
+      "label": "Select Machines By",
+      "required": false,
+      "defaultValue": "machineNames",
+      "options": {
+        "machineNames": "Machine Names",
+        "tags": "Tags"
+      },
+	  "groupName": "advanced",
+      "helpMarkDown": "Optionally, select a subset of machines either by providing machine names or tags."
+    },
+    {
+      "name": "MachineFilter",
+      "type": "string",
+      "label": "Deploy to Machines",
+      "required": false,
+      "defaultValue": "",
+	  "groupName": "advanced",
+      "helpMarkDown": "This input is valid only for machine groups and is not supported for flat list of machines or output variables yet. Provide a list of machines like, dbserver.fabrikam.com, webserver.fabrikam.com, 192.168.12.34, or tags like, Role:DB; OS:Win8.1. If multiple tags are provided, then the task will run in all the machines with the specified tags. For Azure Resource Groups, provide the virtual machine's name like, ffweb, ffdb. The default is to run the task in all machines."
     }
   ],
     "instanceNameFormat": "Deploy IIS App: $(WebDeployPackage)",

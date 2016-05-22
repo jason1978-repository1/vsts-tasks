@@ -12,12 +12,12 @@
     "version": {
         "Major": 0,
         "Minor": 5,
-        "Patch": 3
+        "Patch": 6
     },
     "demands" : [
         "gulp"
     ],
-    "minimumAgentVersion": "1.83.0",
+    "minimumAgentVersion": "1.91.0",
     "groups": [
         {
             "name":"advanced",
@@ -59,6 +59,15 @@
             "defaultValue":"",
             "required":false,
             "helpMarkDown": "Current working directory when script is run.  Defaults to the folder where the script is located.",
+            "groupName":"advanced"
+        },
+        {
+            "name": "gulpjs",
+            "type": "string",
+            "label": "gulp.js location",
+            "defaultValue":"node_modules/gulp/bin/gulp.js",
+            "required":true,
+            "helpMarkDown": "gulp.js to run.  Defaults to the gulp.js under node_modules folder of cwd.",
             "groupName":"advanced"
         }
     ],
